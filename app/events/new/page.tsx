@@ -1,570 +1,931 @@
 "use client";
 
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Award,
   CalendarDays,
   Check,
-  ChevronDown,
+  Clock3,
   FileText,
   MapPin,
   Sparkles,
   Users,
-  X,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
 
 const eventTypes = [
-  "Hackathon",
-  "Workshop",
-  "Seminar",
-  "Competition",
-  "Bootcamp",
-  "Conference",
-  "Other",
+  {
+    id: "Hackathon",
+    label: "Hackathon",
+    description: "Coding competitions and innovation challenges",
+    icon: "⚡",
+  },
+  {
+    id: "Workshop",
+    label: "Workshop",
+    description: "Hands-on learning and technical sessions",
+    icon: "🧠",
+  },
+  {
+    id: "Conference",
+    label: "Conference",
+    description: "Talks, sessions and professional events",
+    icon: "🎤",
+  },
+  {
+    id: "Bootcamp",
+    label: "Bootcamp",
+    description: "Intensive multi-session training",
+    icon: "🚀",
+  },
+  {
+    id: "Competition",
+    label: "Competition",
+    description: "Technical or academic competitions",
+    icon: "🏆",
+  },
+  {
+    id: "Other",
+    label: "Other",
+    description: "Any other type of event",
+    icon: "✨",
+  },
 ];
 
 const certificateTypes = [
   {
-    id: "participation",
-    title: "Participation",
-    description: "For attendees and participants.",
+    id: "Participation Certificate",
+    title: "Participation Certificate",
+    description: "For participants who attend the event",
   },
   {
-    id: "achievement",
-    title: "Achievement",
-    description: "For winners and outstanding performers.",
+    id: "Achievement Certificate",
+    title: "Achievement Certificate",
+    description: "For winners and special achievements",
   },
   {
-    id: "volunteer",
-    title: "Volunteer",
-    description: "For volunteers and event organizers.",
+    id: "Completion Certificate",
+    title: "Completion Certificate",
+    description: "For successfully completing a program",
   },
 ];
 
 export default function CreateEventPage() {
-  const [eventType, setEventType] = useState("Hackathon");
-  const [certificateType, setCertificateType] =
-    useState("participation");
+  const router = useRouter();
 
-  const [showEventTypes, setShowEventTypes] = useState(false);
+  const [step, setStep] = useState(1);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     name: "",
-    organizer: "AI Club",
-    date: "",
-    venue: "",
     description: "",
+    type: "Hackathon",
+    date: "",
+    startTime: "",
+    endTime: "",
+    venue: "",
+    organizer: "Irfan Ansari",
+    organization: "AI Club",
+    certificateType: "Participation Certificate",
   });
 
-  const updateField = (
+  function updateField(
     field: keyof typeof form,
     value: string
-  ) => {
-    setForm((previous) => ({
-      ...previous,
+  ) {
+    setForm((current) => ({
+      ...current,
       [field]: value,
     }));
-  };
+
+    if (error) {
+      setError("");
+    }
+  }
+
+  function validateStepOne() {
+    if (!form.name.trim()) {
+      setError("Please enter an event name.");
+      return false;
+    }
+
+    if (!form.type) {
+      setError("Please select an event type.");
+      return false;
+    }
+
+    if (!form.date) {
+      setError("Please select an event date.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function validateStepTwo() {
+    if (!form.startTime) {
+      setError("Please select a start time.");
+      return false;
+    }
+
+    if (!form.endTime) {
+      setError("Please select an end time.");
+      return false;
+    }
+
+    if (!form.venue.trim()) {
+      setError("Please enter the event venue.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function nextStep() {
+    setError("");
+
+    if (step === 1 && !validateStepOne()) {
+      return;
+    }
+
+    if (step === 2 && !validateStepTwo()) {
+      return;
+    }
+
+    setStep((current) => Math.min(current + 1, 3));
+  }
+
+  function previousStep() {
+    setError("");
+    setStep((current) => Math.max(current - 1, 1));
+  }
+
+  async function handleCreateEvent(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (!form.name.trim()) {
+      setError("Event name is required.");
+      setStep(1);
+      return;
+    }
+
+    setIsCreating(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Failed to create event."
+        );
+      }
+
+      const createdEvent = result.data;
+
+      router.push(`/events/${createdEvent.id}`);
+    } catch (error) {
+      console.error("Create event error:", error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while creating the event."
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   return (
-    <main className="min-h-screen bg-[#070709] text-white">
+    <main className="min-h-screen bg-[#08080c] text-white">
       {/* Background */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-[35%] top-[-250px] h-[500px] w-[500px] rounded-full bg-violet-600/[0.08] blur-[140px]" />
-
-        <div className="absolute right-[-150px] top-[50%] h-[450px] w-[450px] rounded-full bg-blue-600/[0.05] blur-[140px]" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-15%] top-[-10%] h-[500px] w-[500px] rounded-full bg-violet-600/10 blur-[140px]" />
+        <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-fuchsia-600/10 blur-[140px]" />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#070709]/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 transition hover:bg-white/[0.06] hover:text-white"
-            >
-              <ArrowLeft size={17} />
-            </Link>
+      <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white/70 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </button>
 
-            <div>
-              <div className="text-xs text-white/30">
-                Events
-              </div>
-
-              <h1 className="mt-0.5 text-sm font-semibold">
-                Create new event
-              </h1>
-            </div>
-          </div>
-
-          <div className="hidden items-center gap-2 text-[10px] text-white/30 sm:flex">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500/15 text-violet-300">
-              1
-            </span>
-
-            Event details
-
-            <div className="mx-1 h-px w-8 bg-white/10" />
-
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10">
-              2
-            </span>
-
-            Certificate
-
-            <div className="mx-1 h-px w-8 bg-white/10" />
-
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10">
-              3
-            </span>
-
-            Participants
+          <div className="hidden items-center gap-2 text-sm text-white/40 sm:flex">
+            <Sparkles size={15} />
+            CertiFlow
           </div>
         </div>
-      </header>
 
-      {/* Main */}
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          {/* Form */}
-          <section>
-            <div className="mb-8">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-400/15 bg-violet-500/[0.07] px-3 py-1.5 text-[10px] font-medium text-violet-300">
-                <Sparkles size={12} />
-                New event
-              </div>
+        {/* Page heading */}
+        <div className="mb-10">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1.5 text-xs font-medium text-violet-300">
+            <Sparkles size={13} />
+            Event Setup
+          </div>
 
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                Tell us about your event
-              </h2>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Create a new event
+          </h1>
 
-              <p className="mt-2 max-w-xl text-sm leading-6 text-white/35">
-                Add the basic information about your event. You can
-                customize your certificate and participants later.
-              </p>
-            </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45 sm:text-base">
+            Set up your event, add participants and generate
+            personalized certificates when you are ready.
+          </p>
+        </div>
 
-            <div className="space-y-5">
-              {/* Event name */}
-              <FormField
-                label="Event name"
-                required
-                hint="The name participants will see on their certificate."
-              >
-                <div className="relative">
-                  <FileText
-                    size={17}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20"
-                  />
+        {/* Steps */}
+        <div className="mb-10">
+          <div className="flex items-center">
+            {[1, 2, 3].map((item, index) => {
+              const active = step === item;
+              const completed = step > item;
 
-                  <input
-                    value={form.name}
-                    onChange={(e) =>
-                      updateField("name", e.target.value)
-                    }
-                    placeholder="e.g. CodeBlitz 2.0"
-                    className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/40 focus:bg-white/[0.04]"
-                  />
-                </div>
-              </FormField>
-
-              {/* Event type + organizer */}
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  label="Event type"
-                  required
+              return (
+                <div
+                  key={item}
+                  className="flex flex-1 items-center"
                 >
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowEventTypes(!showEventTypes)
-                      }
-                      className="flex h-12 w-full items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 text-left text-sm outline-none transition hover:bg-white/[0.04]"
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition ${
+                        completed
+                          ? "border-violet-400 bg-violet-500 text-white"
+                          : active
+                          ? "border-violet-400/60 bg-violet-500/15 text-violet-300"
+                          : "border-white/10 bg-white/[0.03] text-white/35"
+                      }`}
                     >
-                      <span>{eventType}</span>
+                      {completed ? (
+                        <Check size={16} />
+                      ) : (
+                        item
+                      )}
+                    </div>
 
-                      <ChevronDown
-                        size={16}
-                        className={`text-white/30 transition ${
-                          showEventTypes
-                            ? "rotate-180"
-                            : ""
+                    <div className="hidden sm:block">
+                      <p
+                        className={`text-sm font-medium ${
+                          active || completed
+                            ? "text-white"
+                            : "text-white/35"
                         }`}
-                      />
-                    </button>
+                      >
+                        {item === 1
+                          ? "Event details"
+                          : item === 2
+                          ? "Schedule"
+                          : "Certificate"}
+                      </p>
 
-                    {showEventTypes && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-xl border border-white/10 bg-[#111116] p-1.5 shadow-2xl">
-                        {eventTypes.map((type) => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => {
-                              setEventType(type);
-                              setShowEventTypes(false);
-                            }}
-                            className={`flex w-full items-center rounded-lg px-3 py-2.5 text-left text-xs transition ${
-                              eventType === type
-                                ? "bg-violet-500/10 text-violet-300"
-                                : "text-white/55 hover:bg-white/[0.05] hover:text-white"
-                            }`}
-                          >
-                            {type}
-
-                            {eventType === type && (
-                              <Check
-                                size={14}
-                                className="ml-auto"
-                              />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      <p className="text-xs text-white/30">
+                        {item === 1
+                          ? "Basic information"
+                          : item === 2
+                          ? "Date & venue"
+                          : "Certificate setup"}
+                      </p>
+                    </div>
                   </div>
-                </FormField>
 
-                <FormField
-                  label="Organizer"
-                  required
-                >
-                  <input
-                    value={form.organizer}
-                    onChange={(e) =>
-                      updateField(
-                        "organizer",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Your organization"
-                    className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/40 focus:bg-white/[0.04]"
-                  />
-                </FormField>
-              </div>
-
-              {/* Date + Venue */}
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  label="Event date"
-                  required
-                >
-                  <div className="relative">
-                    <CalendarDays
-                      size={17}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20"
+                  {index < 2 && (
+                    <div
+                      className={`mx-4 h-px flex-1 ${
+                        step > item
+                          ? "bg-violet-500/50"
+                          : "bg-white/10"
+                      }`}
                     />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-                    <input
-                      type="date"
-                      value={form.date}
-                      onChange={(e) =>
-                        updateField(
-                          "date",
-                          e.target.value
-                        )
-                      }
-                      className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-11 pr-4 text-sm text-white outline-none transition focus:border-violet-400/40 focus:bg-white/[0.04]"
-                    />
-                  </div>
-                </FormField>
+        {/* Error */}
+        {error && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <AlertCircle
+              size={18}
+              className="mt-0.5 shrink-0"
+            />
+            <span>{error}</span>
+          </div>
+        )}
 
-                <FormField label="Venue">
-                  <div className="relative">
-                    <MapPin
-                      size={17}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20"
-                    />
-
-                    <input
-                      value={form.venue}
-                      onChange={(e) =>
-                        updateField(
-                          "venue",
-                          e.target.value
-                        )
-                      }
-                      placeholder="e.g. Main Auditorium"
-                      className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/40 focus:bg-white/[0.04]"
-                    />
-                  </div>
-                </FormField>
-              </div>
-
-              {/* Description */}
-              <FormField
-                label="Description"
-                hint="Optional"
-              >
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    updateField(
-                      "description",
-                      e.target.value
-                    )
-                  }
-                  rows={5}
-                  placeholder="Tell participants a little about your event..."
-                  className="w-full resize-none rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/40 focus:bg-white/[0.04]"
-                />
-              </FormField>
-
-              {/* Certificate type */}
-              <div className="pt-5">
-                <div className="mb-4">
-                  <label className="text-sm font-semibold">
-                    Certificate type
-                  </label>
-
-                  <p className="mt-1 text-[11px] text-white/30">
-                    Choose the primary type of certificate for this
-                    event.
+        <form onSubmit={handleCreateEvent}>
+          {/* STEP 1 */}
+          {step === 1 && (
+            <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-2xl shadow-black/20 sm:p-8">
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold">
+                    Event information
+                  </h2>
+                  <p className="mt-1 text-sm text-white/40">
+                    Tell us about the event you are organizing.
                   </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3">
-                  {certificateTypes.map((type) => {
+                <div className="space-y-6">
+                  {/* Name */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">
+                      Event name
+                    </label>
+
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) =>
+                        updateField("name", e.target.value)
+                      }
+                      placeholder="e.g. CodeBlitz 3.0"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/50 focus:bg-white/[0.04]"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">
+                      Description
+                    </label>
+
+                    <textarea
+                      value={form.description}
+                      onChange={(e) =>
+                        updateField(
+                          "description",
+                          e.target.value
+                        )
+                      }
+                      rows={5}
+                      placeholder="Briefly describe your event..."
+                      className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-violet-400/50 focus:bg-white/[0.04]"
+                    />
+                  </div>
+
+                  {/* Type */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-white/80">
+                      Event type
+                    </label>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {eventTypes.map((type) => {
+                        const selected =
+                          form.type === type.id;
+
+                        return (
+                          <button
+                            key={type.id}
+                            type="button"
+                            onClick={() =>
+                              updateField("type", type.id)
+                            }
+                            className={`rounded-2xl border p-4 text-left transition ${
+                              selected
+                                ? "border-violet-400/50 bg-violet-500/10"
+                                : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/[0.03]"
+                            }`}
+                          >
+                            <div className="mb-3 text-2xl">
+                              {type.icon}
+                            </div>
+
+                            <p
+                              className={`text-sm font-semibold ${
+                                selected
+                                  ? "text-violet-200"
+                                  : "text-white"
+                              }`}
+                            >
+                              {type.label}
+                            </p>
+
+                            <p className="mt-1 text-xs leading-5 text-white/35">
+                              {type.description}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Side preview */}
+              <aside className="rounded-3xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-white/[0.025] to-fuchsia-500/5 p-6">
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-400/20 bg-violet-500/10">
+                  <Sparkles
+                    size={21}
+                    className="text-violet-300"
+                  />
+                </div>
+
+                <h3 className="text-lg font-semibold">
+                  Your event workspace
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-white/40">
+                  After creating the event, you will be able
+                  to import participants, design certificates,
+                  generate certificates and send them by email.
+                </p>
+
+                <div className="mt-8 space-y-4">
+                  {[
+                    ["Participants", Users],
+                    ["Certificate Designer", FileText],
+                    ["QR Verification", Sparkles],
+                  ].map(([label, Icon]) => {
+                    const IconComponent =
+                      Icon as typeof Users;
+
+                    return (
+                      <div
+                        key={label as string}
+                        className="flex items-center gap-3"
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.05]">
+                          <IconComponent
+                            size={16}
+                            className="text-white/60"
+                          />
+                        </div>
+
+                        <span className="text-sm text-white/60">
+                          {label as string}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </aside>
+            </section>
+          )}
+
+          {/* STEP 2 */}
+          {step === 2 && (
+            <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-2xl shadow-black/20 sm:p-8">
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold">
+                    Schedule & location
+                  </h2>
+
+                  <p className="mt-1 text-sm text-white/40">
+                    Choose when and where your event will happen.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Date */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">
+                      Event date
+                    </label>
+
+                    <div className="relative">
+                      <CalendarDays
+                        size={18}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                      />
+
+                      <input
+                        type="date"
+                        value={form.date}
+                        onChange={(e) =>
+                          updateField(
+                            "date",
+                            e.target.value
+                          )
+                        }
+                        className="h-12 w-full rounded-xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none focus:border-violet-400/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Time */}
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        Start time
+                      </label>
+
+                      <div className="relative">
+                        <Clock3
+                          size={18}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                        />
+
+                        <input
+                          type="time"
+                          value={form.startTime}
+                          onChange={(e) =>
+                            updateField(
+                              "startTime",
+                              e.target.value
+                            )
+                          }
+                          className="h-12 w-full rounded-xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none focus:border-violet-400/50"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        End time
+                      </label>
+
+                      <div className="relative">
+                        <Clock3
+                          size={18}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                        />
+
+                        <input
+                          type="time"
+                          value={form.endTime}
+                          onChange={(e) =>
+                            updateField(
+                              "endTime",
+                              e.target.value
+                            )
+                          }
+                          className="h-12 w-full rounded-xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none focus:border-violet-400/50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Venue */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">
+                      Venue
+                    </label>
+
+                    <div className="relative">
+                      <MapPin
+                        size={18}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                      />
+
+                      <input
+                        type="text"
+                        value={form.venue}
+                        onChange={(e) =>
+                          updateField(
+                            "venue",
+                            e.target.value
+                          )
+                        }
+                        placeholder="e.g. Main Auditorium"
+                        className="h-12 w-full rounded-xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/20 focus:border-violet-400/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Organizer */}
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        Organizer
+                      </label>
+
+                      <input
+                        type="text"
+                        value={form.organizer}
+                        onChange={(e) =>
+                          updateField(
+                            "organizer",
+                            e.target.value
+                          )
+                        }
+                        className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none focus:border-violet-400/50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        Organization
+                      </label>
+
+                      <input
+                        type="text"
+                        value={form.organization}
+                        onChange={(e) =>
+                          updateField(
+                            "organization",
+                            e.target.value
+                          )
+                        }
+                        className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none focus:border-violet-400/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <aside className="rounded-3xl border border-white/10 bg-white/[0.025] p-6">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/10">
+                    <CalendarDays
+                      size={20}
+                      className="text-violet-300"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Schedule preview
+                    </p>
+                    <p className="text-xs text-white/35">
+                      Event details
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-white/25">
+                      Event
+                    </p>
+                    <p className="mt-1 text-sm text-white/75">
+                      {form.name || "Your event"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-white/25">
+                      Date
+                    </p>
+                    <p className="mt-1 text-sm text-white/75">
+                      {form.date || "Not selected"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-white/25">
+                      Time
+                    </p>
+                    <p className="mt-1 text-sm text-white/75">
+                      {form.startTime || "--:--"}{" "}
+                      {form.endTime
+                        ? `– ${form.endTime}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-white/25">
+                      Venue
+                    </p>
+                    <p className="mt-1 text-sm text-white/75">
+                      {form.venue || "Not selected"}
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </section>
+          )}
+
+          {/* STEP 3 */}
+          {step === 3 && (
+            <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-2xl shadow-black/20 sm:p-8">
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold">
+                    Certificate setup
+                  </h2>
+
+                  <p className="mt-1 text-sm text-white/40">
+                    Choose the certificate type you will issue.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {certificateTypes.map((certificate) => {
                     const selected =
-                      certificateType === type.id;
+                      form.certificateType ===
+                      certificate.id;
 
                     return (
                       <button
-                        key={type.id}
+                        key={certificate.id}
                         type="button"
                         onClick={() =>
-                          setCertificateType(type.id)
+                          updateField(
+                            "certificateType",
+                            certificate.id
+                          )
                         }
-                        className={`relative rounded-2xl border p-5 text-left transition ${
+                        className={`flex w-full items-start gap-4 rounded-2xl border p-5 text-left transition ${
                           selected
-                            ? "border-violet-400/40 bg-violet-500/[0.08]"
-                            : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]"
+                            ? "border-violet-400/50 bg-violet-500/10"
+                            : "border-white/10 bg-black/10 hover:border-white/20"
                         }`}
                       >
-                        {selected && (
-                          <div className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-white">
-                            <Check size={12} />
-                          </div>
-                        )}
-
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                             selected
-                              ? "bg-violet-500/15 text-violet-300"
-                              : "bg-white/[0.04] text-white/40"
+                              ? "border-violet-400 bg-violet-500"
+                              : "border-white/20"
                           }`}
                         >
-                          <Award size={18} />
+                          {selected && (
+                            <Check
+                              size={12}
+                              className="text-white"
+                            />
+                          )}
                         </div>
 
-                        <div className="mt-5 text-sm font-semibold">
-                          {type.title}
-                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {certificate.title}
+                          </p>
 
-                        <div className="mt-2 text-[10px] leading-5 text-white/30">
-                          {type.description}
+                          <p className="mt-1 text-sm text-white/40">
+                            {certificate.description}
+                          </p>
                         </div>
                       </button>
                     );
                   })}
                 </div>
+
+                <div className="mt-8 rounded-2xl border border-violet-400/10 bg-violet-500/5 p-5">
+                  <div className="flex gap-3">
+                    <Sparkles
+                      size={19}
+                      className="mt-0.5 shrink-0 text-violet-300"
+                    />
+
+                    <div>
+                      <p className="text-sm font-medium text-violet-200">
+                        You can customize the certificate later
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-white/40">
+                        After creating this event, CertiFlow
+                        will take you to the certificate designer
+                        where you can add your logo, participant
+                        name, event information, QR code and
+                        other dynamic fields.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col-reverse gap-3 border-t border-white/[0.07] pt-6 sm:flex-row sm:justify-between">
-                <Link
-                  href="/dashboard"
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-5 text-sm text-white/50 transition hover:bg-white/[0.05] hover:text-white"
-                >
-                  <X size={16} />
-                  Cancel
-                </Link>
+              {/* Final preview */}
+              <aside className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025]">
+                <div className="border-b border-white/10 px-6 py-5">
+                  <p className="text-sm font-semibold">
+                    Event summary
+                  </p>
+                  <p className="mt-1 text-xs text-white/35">
+                    Review before creating
+                  </p>
+                </div>
 
+                <div className="p-6">
+                  <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/15 via-black/20 to-fuchsia-500/10 p-5">
+                    <div className="mb-8 flex items-center justify-between">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                        <Sparkles
+                          size={17}
+                          className="text-violet-200"
+                        />
+                      </div>
+
+                      <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] uppercase tracking-wider text-white/50">
+                        Draft
+                      </span>
+                    </div>
+
+                    <p className="text-xs uppercase tracking-[0.2em] text-violet-300/70">
+                      Event
+                    </p>
+
+                    <h3 className="mt-2 text-xl font-semibold">
+                      {form.name || "Untitled Event"}
+                    </h3>
+
+                    <div className="mt-5 space-y-3 text-sm">
+                      <div className="flex items-center gap-2 text-white/45">
+                        <CalendarDays size={14} />
+                        {form.date || "Date not selected"}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-white/45">
+                        <Clock3 size={14} />
+                        {form.startTime || "--:--"}{" "}
+                        {form.endTime
+                          ? `– ${form.endTime}`
+                          : ""}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-white/45">
+                        <MapPin size={14} />
+                        {form.venue || "Venue not selected"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs text-white/30">
+                      Certificate
+                    </p>
+
+                    <p className="mt-1 text-sm text-white/70">
+                      {form.certificateType}
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </section>
+          )}
+
+          {/* Footer actions */}
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="rounded-xl px-5 py-3 text-sm text-white/45 transition hover:bg-white/[0.04] hover:text-white"
+            >
+              Cancel
+            </button>
+
+            <div className="flex gap-3">
+              {step > 1 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    alert(
-                      "Event creation will be connected to the database in the next step."
-                    );
-                  }}
-                  className="group flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90"
+                  onClick={previousStep}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white transition hover:bg-white/[0.06]"
                 >
-                  Create event
-                  <ArrowRight
-                    size={16}
-                    className="transition-transform group-hover:translate-x-1"
-                  />
+                  <ArrowLeft size={16} />
+                  Previous
                 </button>
-              </div>
+              )}
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+                >
+                  Continue
+                  <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:from-violet-400 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2
+                        size={17}
+                        className="animate-spin"
+                      />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={17} />
+                      Create Event
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-          </section>
-
-          {/* Preview / Tips */}
-          <aside className="lg:pt-[90px]">
-            <div className="sticky top-28 space-y-4">
-              {/* Event preview */}
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-white/25">
-                      Event preview
-                    </div>
-
-                    <div className="mt-1 text-sm font-semibold">
-                      {form.name || "Your event name"}
-                    </div>
-                  </div>
-
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10">
-                    <Award
-                      size={17}
-                      className="text-violet-300"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  <PreviewRow
-                    icon={CalendarDays}
-                    label="Date"
-                    value={
-                      form.date
-                        ? new Date(
-                            form.date
-                          ).toLocaleDateString(
-                            "en-IN",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )
-                        : "Not selected"
-                    }
-                  />
-
-                  <PreviewRow
-                    icon={MapPin}
-                    label="Venue"
-                    value={
-                      form.venue || "Not specified"
-                    }
-                  />
-
-                  <PreviewRow
-                    icon={Users}
-                    label="Organizer"
-                    value={
-                      form.organizer ||
-                      "Not specified"
-                    }
-                  />
-
-                  <PreviewRow
-                    icon={Award}
-                    label="Certificate"
-                    value={
-                      certificateTypes.find(
-                        (type) =>
-                          type.id ===
-                          certificateType
-                      )?.title || "Participation"
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Tip */}
-              <div className="rounded-2xl border border-violet-400/10 bg-violet-500/[0.05] p-5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
-                  <Sparkles
-                    size={16}
-                    className="text-violet-300"
-                  />
-                </div>
-
-                <h3 className="mt-4 text-xs font-semibold">
-                  What happens next?
-                </h3>
-
-                <p className="mt-2 text-[10px] leading-5 text-white/35">
-                  After creating your event, you&apos;ll be able
-                  to upload participants and design the certificate
-                  template.
-                </p>
-              </div>
-            </div>
-          </aside>
-        </div>
+          </div>
+        </form>
       </div>
     </main>
-  );
-}
-
-/* ================= COMPONENTS ================= */
-
-function FormField({
-  label,
-  required,
-  hint,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <label className="text-xs font-medium text-white/70">
-          {label}
-          {required && (
-            <span className="ml-1 text-violet-400">
-              *
-            </span>
-          )}
-        </label>
-
-        {hint && (
-          <span className="text-[9px] text-white/20">
-            {hint}
-          </span>
-        )}
-      </div>
-
-      {children}
-    </div>
-  );
-}
-
-function PreviewRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-black/10 p-3">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]">
-        <Icon size={14} className="text-white/35" />
-      </div>
-
-      <div className="min-w-0">
-        <div className="text-[9px] text-white/20">
-          {label}
-        </div>
-
-        <div className="mt-0.5 truncate text-[11px] text-white/55">
-          {value}
-        </div>
-      </div>
-    </div>
   );
 }
